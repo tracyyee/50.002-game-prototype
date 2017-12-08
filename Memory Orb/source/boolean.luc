@@ -1,0 +1,28 @@
+// an 8-bit Boolean unit for the Beta's logic instructions
+
+module boolean (
+    input alufn[4],   // 4-bit ALUFN input i.e. ALUFN0, ALUFN1, ALUFN2 and ALUFN3
+    input a[8],       // 8-bit input A
+    input b[8],       // 8-bit input B
+    output boole[8]   // 8-bit output Boolean function
+  ) {
+
+  always {
+
+  boole = 8b00;             // default case (output 0)
+  
+  case(alufn){              // selects which operation to perform
+    4b1000: boole = a & b;  // AND operation (outputs true only if both inputs are true)
+    4b1110: boole = a | b;  // OR operation (outputs true as long as one input is true)
+    4b0110: boole = a ^ b;  // XOR operation (outputs true only if one input is true and the other is false)
+    4b1010: boole = a;      // "A" operation (only takes the value of input_A, ignores value of input_B)
+      
+    // additional operations (complements of above operations)
+    4b0111: boole = ~(a & b);  // NAND operation
+    4b0001: boole = ~(a | b);  // NOR operation
+    4b1001: boole = ~(a ^ b);  // XNOR operation
+    4b0101: boole = ~a;        // NOT "A" operation
+    
+    }
+  }
+}

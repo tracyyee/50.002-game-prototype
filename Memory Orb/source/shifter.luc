@@ -1,0 +1,21 @@
+// an 8-bit shifter that implements SRA, SHR and SHL instructions
+
+// ALUFN0 is 0 for a left shift and 1 for a right shift and ALUFN1 controls the sign extension logic on right shift
+
+module shifter (
+    input alufn[2],      // 2-bit ALUFN input i.e. ALUFN0 and ALUFN1
+    input a[8],          // 8-bit input A; supplies the data to be shifted
+    input b[3],          // 3-bit input B (low-order 3 bits); shift count (3 bits required to shift by 0 to 7 bits)
+    output shift[8]      // 8-bit shifted output
+  ) {
+
+  always {
+    
+    case (alufn) {                       // decides on the operation
+      2b00: shift = a << b;              // SHL (shift left); 0's are shifted into the vacated bits poosition
+      2b01: shift = a >> b;              // SHR (shift right); 0's are shifted into the vacated bits poosition
+      2b11: shift = $signed(a) >>> b;    // SRA (shift right with sign extension); the vacated bits positions are all filled with A7 (the sign bit of the original data)
+      default: shift = a << b;           // default case (if ALUFN[1:0] is neither 00, 01, nor 11; i.e. ALUFN[1:0] is 10); since ALUFN is 0, it is a left shift (sign doesn't matter for left shifts)
+    }
+  }
+}

@@ -1,0 +1,58 @@
+// an 8-bit adder/subtractor/multiplier unit that operates on 8-bit two's complement inputs and generates an 8-bit output
+// three other output signals are also generated to be used by the comparison logic in the comparator
+
+module adder (
+    input alufn[2],   // 1-bit ALUFN input i.e. ALUFN0 and ALUFN1 (selects whether the operation is an ADD or SUBTRACT)
+    input a[8],       // 8-bit input A
+    input b[8],       // 8-bit input B
+    output sum[8],    // 8-bit Sum output
+    output z,         // 1-bit output Z of adder
+    output v,         // 1-bit output V of adder
+    output n          // 1-bit output N of adder
+  ) {
+  
+  var i;                       // variable used to iterate during for-loop
+  sig sum_sig[8], c[9], xb[8]; // Sum output, Carry_in input/output, XB input respectively
+  sig multresult[16];          // stores result of multiplication operation (additional function)
+  
+  always {
+    
+    c[0] = alufn[0]; // first carry-in input
+    
+    // 8-bit Full Adder
+    for ( i = 0; i < 8; i++ ) {
+      
+      xb[i] = b[i] ^ alufn[0]; // input B and ALUFN0 passes through XOR(^) gate; output XB
+      
+      // Sum of Full Adder = input_A XOR input_B XOR input_C;
+      sum[i] = (a[i] ^ xb[i]) ^ c[i]; // output Sum
+      
+      // Carry_out of Full Adder = (input_A AND input_B) OR (input_C AND (input_A XOR input_B))
+      c[i+1] = (a[i] & xb[i]) | (c[i] & (a[i] ^ xb[i])); // output C; output C(i+1) = input C(i)
+       
+      // sum is write only, cannot be read
+      sum_sig[i] = (a[i] ^ xb[i]) ^ c[i]; // Sum of adder (for use outside of for-loop to compute z, v, n)
+    }
+    
+    // additional function
+    // a combinational multiplier that accepts 8-bit operands and produces an 8-bit result
+    if ((alufn[1] == 1) & (alufn[0] == 0)) {   // multiplication
+      multresult = 16b0;                       // initialise the unset variable; multiplying two 8-bit numbers produces a 16-bit product
+      multresult = multresult + a*b;           // (a*b) is forced to 16 bits
+      sum[7:0] = multresult[7:0];              // ignore the buffer zone 15:8 (only want the low-order 8 bits of the 16-bit product); override the sum[7:0]
+    }
+    
+    // output Z (true when all the S outputs of the adder are 0)
+    case (sum_sig) {
+      8b00: z = 1;    // all the S outputs of the adder are 0, z = 1
+      default: z = 0; // not all the S outputs of the adder are 0, z = 0
+    }
+    
+    // output V (true when addition operation overflows)
+    // V = (XA[7] AND XB[7] AND (NOT S[7])) OR ((NOT XA[7]) AND (NOT XB[7]) AND S[7]))
+    v = (a[7] & xb[7] & ~sum_sig[7]) | (~a[7] & ~xb[7] & sum_sig[7]); // if overflow, v = 1; if no overflow, v = 0
+    
+    // output N (true when S is negative, i.e. S7 = 1)
+    n = sum_sig[7]; // if Sum is negative, n = 1; if Sum is positive, n = 0
+  }
+}

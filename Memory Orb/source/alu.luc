@@ -1,0 +1,50 @@
+// an 8-bit ALU module that combines the outputs of the adder, boolean, shifter and comparator units to produce a single ALU output
+
+module alu (
+    input alufn[6],    // 6-bit ALUFN input (ALUFN[5:0])
+    input a[8],        // 8-bit input A
+    input b[8],        // 8-bit input B
+    output alu[8]      // 8-bit ALU output
+  ) {
+
+  // instantiate modules of ALU (adder, boolean, shifter and comparator modules)
+  adder add8;
+  boolean boole8;
+  shifter shift8;
+  comparator cmp8;
+  
+  always {
+    
+    // assigning inputs of modules
+    
+    // adder module
+    add8.alufn = alufn[1:0];
+    add8.a = a;
+    add8.b = b;
+    
+    // boolean module
+    boole8.alufn = alufn[3:0];
+    boole8.a = a;
+    boole8.b = b;
+    
+    // shifter module
+    shift8.alufn = alufn[1:0];
+    shift8.a = a;
+    shift8.b = b[2:0];
+    
+    // comparator module
+    cmp8.alufn = alufn[2:1];
+    cmp8.z = add8.z;
+    cmp8.v = add8.v;
+    cmp8.n = add8.n;
+    
+    case (alufn[5:4]) {           // select which unit will supply the value fir the ALU output
+      2b00: alu = add8.sum;       // adder output
+      2b01: alu = boole8.boole;   // boolean output
+      2b10: alu = shift8.shift;   // shifter output
+      2b11: alu = cmp8.cmp;       // comparator output
+      default: alu = 8bxx;
+      
+    } 
+  }
+}

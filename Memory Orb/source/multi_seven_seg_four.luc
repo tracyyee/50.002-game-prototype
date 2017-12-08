@@ -1,0 +1,36 @@
+// from IO Shield Tutorial
+
+// takes four values in and display them on all four digits instead of only using one
+
+module multi_seven_seg_four #( // parameterized so that it could be used to drive more or less than 4 digits
+    DIGITS = 4 : DIGITS > 0,
+    DIV = 16 : DIV >= 0
+  )(
+    input clk,                // clock
+    input rst,                // reset
+    input values [DIGITS][4], // values to show
+    output seg [8],           // LED segments
+    output sel [DIGITS]       // Digit select
+  ) {
+ 
+  // number of bits required to store DIGITS-1 (cover all DIGITS number of digits)
+  const DIGIT_BITS = $clog2(DIGITS); // the function $clog2() computes the ceiling log base 2 of a constant value
+ 
+  .clk(clk), .rst(rst) {
+    // counter: outputs a value starting from zero and increments to maximum value set, then resets back to zero
+    // TOP: only want the counter to count from 0 to DIGITS-1
+    // DIV: don't switch between the digits too fast (prevent bleeding between digits due to transistors not having time to fully turn off)
+    counter ctr (#DIV(DIV), #SIZE(DIGIT_BITS), #TOP(DIGITS-1)); 
+      }
+ 
+  seven_seg seg_dec;                      // segment decoder
+  decoder digit_dec (#WIDTH(DIGIT_BITS)); // digit decoder
+ 
+  always {
+    seg_dec.number = values[ctr.value];     // select the value for the active digit
+    seg = seg_dec.segs;                   // output the decoded value (sends to the segments of the LEDs displays)
+ 
+    digit_dec.in = ctr.value;             // decode active digit into a one-hot value (a group of bits among which the legal combinations of values are only those with a single high (1) bit and all the others low (0))
+    sel = digit_dec.out;                  // output the active digit (used to select which digit is on)
+  }
+}

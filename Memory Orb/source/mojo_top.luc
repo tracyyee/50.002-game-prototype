@@ -1,0 +1,455 @@
+module mojo_top (
+    input clk,              // 50MHz clock
+    input rst_n,            // reset button (active low)
+    //output led [8],         // 8 user controllable LEDs
+    input cclk,             // configuration clock, AVR ready when high
+    //output spi_miso,        // AVR SPI MISO
+    //input spi_ss,           // AVR SPI Slave Select
+    //input spi_mosi,         // AVR SPI MOSI
+    //input spi_sck,          // AVR SPI Clock
+    //output spi_channel [4], // AVR general purpose pins (used by default to select ADC channel)
+    //input avr_tx,           // AVR TX (FPGA RX)
+    //output avr_rx,          // AVR RX (FPGA TX)
+    //input avr_rx_busy,       // AVR RX buffer full
+    //output display [8],
+    //output display_select [2],
+    input button1,
+    input button2,
+    input button3,
+    //input button4,
+    //input button5,
+    input buttonReset,
+    output display1 [8],
+    output display_select1 [2],
+    output display2 [8],
+    output display_select2 [2],
+    output display3 [8],
+    output display_select3 [2],
+    //output display4 [8],
+    //output display_select4 [2],
+    //output display5 [8],              // design too big
+    //output display_select5 [4],       // design too big
+    //output display_score [8],         //not yet
+    //output display_select_score [2],  //not yet
+    //output display_time [8],          // not assigned port in constraints (insufficient ports)
+    //output display_select_time [4],   // not assigned port in constraints (insufficient ports)
+    output display_eqn1 [8],
+    output display_select_eqn1 [2],
+    output display_eqn2 [8],
+    output display_select_eqn2 [2],
+    output displayop [3],
+    output displayYN [3]
+  ) {
+  
+  sig rst;                  // reset signal
+  //sig digit1[8];
+  //sig digit2[8];
+  
+   
+  alu alu8; 
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+    
+    edge_detector edge_detector1(#RISE(1), #FALL(0)); // detect rising edges
+    edge_detector edge_detector2(#RISE(1), #FALL(0)); // detect rising edges
+    edge_detector edge_detector3(#RISE(1), #FALL(0)); // detect rising edges
+    //edge_detector edge_detector4(#RISE(1), #FALL(0)); // detect rising edges
+    //edge_detector edge_detector5(#RISE(1), #FALL(0)); // detect rising edges
+    edge_detector edge_detectorReset(#RISE(1), #FALL(0)); // detect rising edges
+     
+    button_conditioner button_cond1;     // button input reset_conditioner
+    button_conditioner button_cond2;     // button input reset_conditioner
+    button_conditioner button_cond3;     // button input reset_conditioner
+    //button_conditioner button_cond4;     // button input reset_conditioner
+    //button_conditioner button_cond5;     // button input reset_conditioner
+    button_conditioner button_condReset;     // button input reset_conditioner
+
+   
+    .rst(rst) {
+      dff counter[32]; // counter to cycle through different states, number represents time spent in each state
+      
+      //dff rng_statestore[16];
+      
+      // define fsm states (for testing)
+      fsm state = {START, GEN_EQN, VALIDATE_ANS, GEN_FOUR_RAND, DISPLAY_NUMS,
+		OFF_DISPLAY_NUMS, DISPLAY_EQN, WAIT_INPUT, REVEAL_ANS, CHK_TIMER, GAMES_END};
+      
+      multi_seven_seg seg_eqn1; // instantiate multi_seven_seg for number A (left)
+      multi_seven_seg seg_eqn2; // instantiate multi_seven_seg for number B (right)
+      
+      multi_seven_seg seg1; // instantiate multi_seven_seg for display (wrong ans 1)
+      multi_seven_seg seg2; // instantiate multi_seven_seg for display (wrong ans 2)
+      multi_seven_seg seg3; // instantiate multi_seven_seg for display (wrong ans 3)
+      //multi_seven_seg seg4; // instantiate multi_seven_seg for display (wrong ans 4)
+      //multi_seven_seg seg5; // instantiate multi_seven_seg for display (wrong ans 5)
+      
+      pn_gen rng;
+      
+      dff score;
+      dff difficulty;
+      dff tempA[2][4];
+      dff tempB[2][4];
+      dff tempOp[3];
+      dff tempAns[2][4];
+      dff wrong_A[2][4];
+      dff wrong_B[2][4];
+      //dff wrong_C[2][4];
+      //dff wrong_D[2][4];
+      dff ansPos[2];
+    }
+
+  }
+    
+  //random rng; //instantiate
+  //const T = 27; // constant to control time interval before transitioning to the next state (adjust accordingly)
+  //seven_seg seg;
+  
+      sig x1[4]; //just a temporary variable
+      sig y1[4];
+      sig x2[4];
+      sig y2[4];
+      //sig x3[4];
+      //sig y3[4];
+      sig x4[4];
+      //sig y4[4];
+      
+  
+  always {
+    //rng.prev=rng_statestore.q+1;
+    //rng_statestore.d=rng.next;
+    counter.d=counter.q+1;
+    
+    alu8.alufn=6bxxxxxx;
+    alu8.a=8bx;
+    alu8.b=8bx;
+    
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset
+    
+    //led = 8h00;             // turn LEDs off
+    
+    display1 = seg1.seg;          // assign digit number to display1 (option 1)
+    display_select1 = seg1.sel;   // assign digit selector to display1
+    
+    display2 = seg2.seg;          // assign digit number to display2 (option 2)
+    display_select2 = seg2.sel;   // assign digit selector to display2
+    
+    display3 = seg3.seg;          // assign digit number to display3 (option 3)
+    display_select3 = seg3.sel;   // assign digit selector to display3
+
+    display_eqn1 = seg_eqn1.seg;            // assign digit number to display_time (time)
+    display_select_eqn1 = seg_eqn1.sel;     // assign digit selector to display_time
+    
+    display_eqn2 = seg_eqn2.seg;            // assign digit number to display_time (time)
+    display_select_eqn2 = seg_eqn2.sel;     // assign digit selector to display_time
+
+    displayop = 3b000; // displayop[2] = green LED (addition), displayop[1] = yellow LED (subtraction), displayop[0] = red LED (multiplication)
+    displayYN = 3b000; // displayYN[2] = green LED (correct), displayYN[1] = red LED (wrong / mistake 1), displayYN[0] = red LED (mistake 2)
+
+    
+    seg1.values = {4d15,4d15}; // initialize the values for seven_seg
+    seg2.values = {4d15,4d15}; // initialize the values for seven_seg
+    seg3.values = {4d15,4d15}; // initialize the values for seven_seg
+    seg_eqn1.values = {4d15,4d15}; // left
+    seg_eqn2.values = {4d15,4d15}; // right
+    //seg4.values = {4d15,4d15}; // initialize the values for seven_seg
+    //seg5.values = {4d15,4d15}; // initialize the values for seven_seg
+    
+    button_cond1.in = button1;            // raw button input
+    button_cond2.in = button2;            // raw button input    
+    button_cond3.in = button3;            // raw button input
+    //button_cond4.in = button4;            // raw button input    
+    //button_cond5.in = button5;            // raw button input    
+    button_condReset.in = buttonReset;            // raw button input
+    
+    edge_detector1.in = button_cond1.out; // input to the edge_detector
+    edge_detector2.in = button_cond2.out; // input to the edge_detector
+    edge_detector3.in = button_cond3.out; // input to the edge_detector
+    //edge_detector4.in = button_cond4.out; // input to the edge_detector
+    //edge_detector5.in = button_cond5.out; // input to the edge_detector
+    edge_detectorReset.in = button_condReset.out; // input to the edge_detector
+    
+    
+    rng.seed = 128h843233523a613966423b622562592c62;
+    rng.next = 0;
+    
+    case(state.q){
+        
+      // Initial state
+      //chooses difficulty
+      state.START:
+        //sets difficuty -----
+        //seg.values = {rng.num[23:20],rng.num[8:5]}; // display first digit
+        seg1.values = {4d15,4d1};
+        seg2.values = {4d15,4d2};
+        seg3.values = {4d15,4d3};
+        
+        if (edge_detector1.out) {
+         rng.next = 1;
+         difficulty.d = 1;
+         state.d = state.GEN_EQN; //move to the next state
+        } else if (edge_detector2.out) {
+         rng.next = 1;
+         difficulty.d = 2;
+         state.d = state.GEN_EQN; //move to the next state
+        } else if (edge_detector3.out) {
+         rng.next = 1;
+         difficulty.d = 3;
+         state.d = state.GEN_EQN; //move to the next state
+        }
+        
+      state.GEN_EQN:
+        x1=rng.num[23:20];
+        y1=rng.num[8:5];
+        if (x1>=10) x1=x1-10;
+        if (y1>=10) y1=y1-10;
+        tempA.d = {x1,y1};
+        
+        x2=rng.num[27:24];
+        y2=rng.num[12:9];
+        if (x2>=10) x2=x2-10;
+        if (y2>=10) y2=y2-10;
+        tempB.d = {x2,y2};
+        //operation plus, minus, mutipy
+        case (rng.num[19:18]){
+          2b00: tempOp.d=3b100;
+          2b01: tempOp.d=3b010;
+          2b10: tempOp.d=3b001;
+          2b11: tempOp.d=3b100;
+        }
+        state.d=state.VALIDATE_ANS;
+        
+      state.VALIDATE_ANS:
+        case (tempOp.q[0]){
+          2b00: if ((tempA.q[0]*10+tempA.q[1]+tempB.q[0]*10+tempB.q[1])<100){
+                y1=tempA.q[1]+tempB.q[1];
+                if (y1>=10){ //carry forward
+                  y1=y1-10;
+                  x1=tempA.q[0]+tempB.q[0]+1;
+                  if (x1>=10) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                } else { //no carry
+                  x1=tempA.q[0]+tempB.q[0];
+                  if (x1>=10) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                }
+                tempAns.d={x1,y1};
+                state.d = state.GEN_FOUR_RAND;
+                } else {
+                state.d = state.GEN_EQN;
+                }
+            
+          2b01: if ((tempA.q[0]*10+tempA.q[1]-tempB.q[0]*10-tempB.q[1])>=0){
+                y1=tempA.q[1]-tempB.q[1];
+                if (y1<0){ //borrow
+                  y1=y1+10;
+                  x1=tempA.q[0]-tempB.q[0]-1;
+                  if (x1<0) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                } else { //no borrow
+                  x1=tempA.q[0]-tempB.q[0];
+                  if (x1<10) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                }
+                tempAns.d={x1,y1};
+                state.d = state.GEN_FOUR_RAND;
+                } else {
+                state.d = state.GEN_EQN;
+                }
+            
+          2b10: if ((tempA.q[0]*10+tempA.q[1])*(tempB.q[0]*10+tempB.q[1])<=99 ){ //japanese multiplication
+                y1=tempA.q[1]*tempB.q[1];
+                x1=(tempA.q[0]*tempB.q[1])+(tempA.q[1]*tempB.q[0]); //assume (tempA.q[1]*tempB.q[1])=0 if not its an error and caught in first line
+               for (x4 = 0; x4 < 9; x4++) { //x4 is just a unused variable
+                if (y1>=10){
+                 y1=y1-10;
+                 x1=x1+1;
+                }
+               }
+              //pls verify thanks
+                  tempAns.d={x1,y1};
+                state.d = state.GEN_FOUR_RAND;
+                } else {
+                state.d = state.GEN_EQN;
+                }
+            
+          default: if ((tempA.q[0]*10+tempA.q[1]+tempB.q[0]*10+tempB.q[1])<100){ //default add
+                y1=tempA.q[1]+tempB.q[1];
+                if (y1>=10){ //carry forward
+                  y1=y1-10;
+                  x1=tempA.q[0]+tempB.q[0]+1;
+                  if (x1>=10) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                } else { //no carry
+                  x1=tempA.q[0]+tempB.q[0];
+                  if (x1>=10) state.d=state.GEN_EQN; //invalid eqn: regen: but shouldnt reach because first line, assuming this is a "return" and not overwriten
+                }
+                tempAns.d={x1,y1};
+                state.d = state.GEN_FOUR_RAND;
+                } else {
+                state.d = state.GEN_EQN;
+                }
+            
+      state.GEN_FOUR_RAND:
+          //first set of numbers (wrong_A)
+          x1 = rng.num[25:22];
+          y1 = rng.num[10:7];
+//          if (x1>=10) x1=x1-10;
+//alu use starts
+          alu8.alufn=6b11x10x; //cmplt
+          alu8.a=x1;
+          alu8.b=8d10;
+          if (~alu8.alu) { //NOT lt
+             alu8.alufn=6b00xx01; //minus
+             alu8.a=x1;
+             alu8.b=8d10;
+             x1=alu8.alu[3:0];
+          }
+//end of alu use
+//          if (y1>=10) y1=y1-10;
+//alu use starts
+          alu8.alufn=6b11x10x; //cmplt
+          alu8.a=y1;
+          alu8.b=8d10;
+          if (~alu8.alu) { //NOT lt
+             alu8.alufn=6b00xx01; //minus
+             alu8.a=x1;
+             alu8.b=8d10;
+             x1=alu8.alu[3:0];
+          }
+
+//end of alu use            
+//          if (x1==tempA.q[0]){ //check clash with tempA
+//            x1=x1+1;
+//          }
+//alu use starts
+            alu8.alufn=6b11x01x; //cmpeq
+            alu8.a=x1;
+            alu8.b=tempA.q[0];
+            if (alu8.alu){
+              alu8.alufn=6b00xx00; //add
+              alu8.a=x1;
+              alu8.b=8b1;
+              x1=alu8.alu[3:0]; 
+            }
+//end of alu use    
+//          if (y1==tempA.q[1]){ //check clash with tempA
+//            y1=y1+1;
+//          }
+//alu use starts
+            alu8.alufn=6b11x01x; //cmpeq
+            alu8.a=y1;
+            alu8.b=tempA.q[1];
+            if (alu8.alu){
+              alu8.alufn=6b00xx00; //add
+              alu8.a=y1;
+              alu8.b=8b1;
+              y1=alu8.alu[3:0]; 
+            }
+//end of alu use   
+          
+          //second set of numbers (wrong_B)
+          x2 = rng.num[27:24];
+          y2 = rng.num[12:9];
+          if (x2>=10) x2=x2-10;
+          if (y2>=10) y2=y2-10;
+          if (x2==tempA.q[0]){
+            x2=x2+1;
+          }
+          if (x2==x1){
+            x2=x2+1;
+          }
+          if (y2==tempA.q[1]){
+            y1=y1+1;
+          }
+          if (y2==y1){
+            y2=y2+1;
+          }
+          
+        wrong_A.d={x1,y1};
+        wrong_B.d={x2,y2};
+        //wrong_C.d={x3,y3};
+        //wrong_D.d={x4,y4};
+        rng.next=1;
+        state.d=state.DISPLAY_NUMS;
+            
+      state.DISPLAY_NUMS:
+        x1=rng.num[17:16];
+        case (rng.num[17:16]){
+              2b00:
+        seg1.values=tempAns.q;
+        seg2.values=wrong_A.q;
+        seg3.values=wrong_B.q;
+        ansPos.d=1;
+              2b01:
+        seg2.values=tempAns.q;
+        seg3.values=wrong_A.q;
+        seg1.values=wrong_B.q;
+        ansPos.d=2;
+              2b10:
+        seg3.values=tempAns.q;
+        seg1.values=wrong_A.q;
+        seg2.values=wrong_B.q;
+        ansPos.d=3;
+              2b11:
+        seg1.values=tempAns.q;
+        seg2.values=wrong_A.q;
+        seg3.values=wrong_B.q;
+        ansPos.d=1;
+              default:
+        seg2.values=tempAns.q;
+        seg3.values=wrong_A.q;
+        seg1.values=wrong_B.q;
+        ansPos.d=2;
+            }
+            counter.d=counter.q+1;
+            if (counter.q[30-difficulty.q]){
+                state.d=state.OFF_DISPLAY_NUMS;
+            }
+            
+        state.OFF_DISPLAY_NUMS:
+          seg1.values={4b0,4b0};
+          seg2.values={4b0,4b0};
+          seg3.values={4b0,4b0};
+          //seg4.values={4b0,4b0};
+          //seg5.values={4b0,4b0};
+          state.d=state.DISPLAY_EQN;
+            
+            
+        state.DISPLAY_EQN:
+          seg_eqn1.values=tempA.q;
+          seg_eqn2.values=tempB.q;
+          displayop=tempOp.q;
+          state.d=state.WAIT_INPUT;
+            
+        state.WAIT_INPUT:
+          if ((edge_detector1.out==1 & ansPos.q==1) | (edge_detector2.out==1 & ansPos.q==2) | (edge_detector3.out==1 & ansPos.q==3)) {
+            score.d=score.q+1;
+            state.d=state.REVEAL_ANS;
+          } else if ((edge_detector1.out==1 & ansPos.q!=1) | (edge_detector2.out==1 & ansPos.q!=2) | (edge_detector3.out==1 & ansPos.q!=3)) {
+            state.d=state.REVEAL_ANS;
+            }
+            
+              
+              
+        state.REVEAL_ANS:
+            case (ansPos.q){
+              1: seg1.values=tempAns.q;
+              2: seg2.values=tempAns.q;
+              3: seg3.values=tempAns.q;
+            }
+            counter.d=counter.q+1;
+            if (counter.q[28]==1) {
+            state.d=state.CHK_TIMER;
+            }
+              
+    
+        state.CHK_TIMER:
+           counter.d=counter.q+1;
+           if (counter.q[30-difficulty.q]==1){
+              state.d=state.GAMES_END;
+           }
+            
+            
+  }
+  }
+}
+}

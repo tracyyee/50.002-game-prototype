@@ -1,0 +1,28 @@
+// an 8-bit compare unit that generates one of two constants ("0" or "1")
+// depending on the ALUFN control signals and the Z, V and N outputs of the adder/subtractor unit
+
+// the Beta instruction set includes three compare instructions (CMPEQ, CMPLT, CMPLE) that compare the "A" and "B" operands
+// the compare instructions generate an 8-bit Boolean result, using "0" to represent false and "1" to represent "true"
+
+module comparator (
+    input alufn[2],   // 2-bit ALUFN signal i.e. ALUFN1 and ALUFN2
+    input z,          // 1-bit input Z from adder
+    input v,          // 1-bit input V from adder
+    input n,          // 1-bit input N from adder
+    output cmp[8]     // output of ALU
+  ) {
+  
+  sig out; // least significant bit of the output (determined by the comparison being performed and results of adder)
+  
+  always {
+    
+    case (alufn) {          // control the compare unit (define comparator function)
+      2b01: out = z;        //CMPEQ; LSB = input_Z
+      2b10: out = (n^v);    //CMPLT; LSB = input_N XOR input_V
+      2b11: out = z|(n^v);  //CMPLE; LSB = input_Z OR (input_N XOR input V)
+      default: out = 0;
+    }
+    
+    cmp = c{7b00, out};     // high order 7 bits of the output are always 0
+  }
+}

@@ -1,0 +1,31 @@
+// from IO Shield Tutorial
+
+// look-up table (converts a number into the segments that need to be lit to represent that number)
+
+module seven_seg (
+    input number[4], // input binary number
+    output segs[8] // output segments that need to be on to display the number
+  ) {
+
+  always {
+    
+    case (number) { // selects entries based on the value of char
+      0: segs = 8b0111111;
+      1: segs = 8b0000110;
+      2: segs = 8b1011011;
+      3: segs = 8b1001111;
+      4: segs = 8b1100110;
+      5: segs = 8b1101101; // also for S (shifter module)
+      6: segs = 8b1111101;
+      7: segs = 8b0000111;
+      8: segs = 8b1111111;
+      9: segs = 8b1100111;
+      10: segs =8b1110111; // A (adder module)
+      11: segs =8b1111111; // B (boolean module)
+      12: segs =8b0111001; // C (comparator module)
+      13: segs =8b1111001; // E (E of Error)
+      14: segs =8b0110001; // r (r of Error)
+      default: segs = 8b0000000; // no display (char is an invalid number)
+    }
+  }
+}
